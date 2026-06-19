@@ -25,7 +25,7 @@ jobs:
           const cheerio = require('cheerio');
           const nodemailer = require('nodemailer');
 
-          const KEYWORDS = ['solar','pv','electrical','construction','civil','power','energy','grid','borehole','inverter','water','sanitation','telecom','mining'];
+          const KEYWORDS = ['solar','pv','electrical','construction','civil','power','energy','grid','borehole','inverter','water','sanitation','telecom','mining','banking','infrastructure'];
           const MIN_VALUE = 20000;
 
           const SOURCES = [
@@ -35,7 +35,12 @@ jobs:
             { name: 'UNICEF ZW', url: 'https://www.unicef.org/zimbabwe/procurement', selector: '.content-card', type: 'list' },
             { name: 'World Bank ZW', url: 'https://projects.worldbank.org/en/projects-operations/procurement?countrycode_exact=ZW', selector: '.procurement-notice', type: 'list' },
 
-            // Your requested companies
+            // Parastatals + Banks
+            { name: 'ZESA', url: 'https://www.zesa.co.zw/tenders/', selector: '.tender-item, tr', type: 'list' },
+            { name: 'TelOne', url: 'https://www.telone.co.zw/tenders', selector: '.tender, article', type: 'list' },
+            { name: 'CBZ Bank', url: 'https://www.cbz.co.zw/about-us/procurement', selector: '.procurement-item, li', type: 'list' },
+
+            // Private Companies
             { name: 'Delta Beverages', url: 'https://www.delta.co.zw/tenders', selector: '.tender-item,.post', type: 'list' },
             { name: 'Old Mutual ZW', url: 'https://www.oldmutual.co.zw/about-us/procurement', selector: '.procurement-item, li', type: 'list' },
             { name: 'Econet', url: 'https://www.econet.co.zw/tenders/', selector: '.tender, article', type: 'list' },
