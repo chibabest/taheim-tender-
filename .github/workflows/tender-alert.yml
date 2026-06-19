@@ -1,4 +1,4 @@
-name: Daily PRAZ + NGO Tender Alert
+name: Daily ZW Tender Alert - Gov + NGO + Private
 on:
   schedule:
     - cron: '0 6 * * *' # 8am CAT = 6am UTC
@@ -25,52 +25,79 @@ jobs:
           const cheerio = require('cheerio');
           const nodemailer = require('nodemailer');
 
-          const KEYWORDS = ['solar','pv','electrical','construction','civil','power','energy','grid','borehole','inverter'];
+          const KEYWORDS = ['solar','pv','electrical','construction','civil','power','energy','grid','borehole','inverter','water','sanitation','telecom','mining'];
           const MIN_VALUE = 20000;
 
-          async function scrapePRAZ() {
-            try {
-              const { data } = await axios.get('https://portal.praz.org.zw/tenders', { timeout: 20000 });
-              const $ = cheerio.load(data);
-              let tenders = [];
-              $('.tender-table tr').slice(1).each((i, row) => {
-                const cols = $(row).find('td');
-                if (cols.length < 4) return;
-                const title = $(cols[1]).text().trim();
-                const deadline = $(cols[2]).text().trim();
-                const value = parseFloat($(cols[3]).text().replace(/[\$,]/g,'')) || 0;
-                const href = $(cols[1]).find('a').attr('href');
-                const link = href? 'https://portal.praz.org.zw' + href : 'https://portal.praz.org.zw/tenders';
-                if (KEYWORDS.some(kw => title.toLowerCase().includes(kw)) && value >= MIN_VALUE) {
-                  tenders.push(\`PRAZ: \${title} | USD $\${value.toLocaleString()} | Deadline: \${deadline} | \${link}\`);
-                }
-              });
-              return tenders;
-            } catch(e) { return [\`PRAZ Error: \${e.message}\`]; }
-          }
+          const SOURCES = [
+            // Gov + NGOs
+            { name: 'PRAZ', url: 'https://portal.praz.org.zw/tenders', selector: '.tender-table tr', type: 'table' },
+            { name: 'UNDP', url: 'https://procurement-notices.undp.org/search.cfm?cur=USD&org=UND&cat=Works&cntry=ZWE', selector: '.vacancy', type: 'list' },
+            { name: 'UNICEF ZW', url: 'https://www.unicef.org/zimbabwe/procurement', selector: '.content-card', type: 'list' },
+            { name: 'World Bank ZW', url: 'https://projects.worldbank.org/en/projects-operations/procurement?countrycode_exact=ZW', selector: '.procurement-notice', type: 'list' },
 
-          async function scrapeUNDP() {
+            // Your requested companies
+            { name: 'Delta Beverages', url: 'https://www.delta.co.zw/tenders', selector: '.tender-item,.post', type: 'list' },
+            { name: 'Old Mutual ZW', url: 'https://www.oldmutual.co.zw/about-us/procurement', selector: '.procurement-item, li', type: 'list' },
+            { name: 'Econet', url: 'https://www.econet.co.zw/tenders/', selector: '.tender, article', type: 'list' },
+            { name: 'ZTE ZW', url: 'https://www.zte.com.cn/global/about/contact-us/zimbabwe', selector: 'a', type: 'list' },
+            { name: 'Zimplats', url: 'https://www.zimplats.com/supply-chain/tenders/', selector: '.tender-row, tr', type: 'list' },
+            { name: 'Mimosa Mining', url: 'https://www.mimosa.co.zw/procurement/', selector: '.tender', type: 'list' },
+            { name: 'NetOne', url: 'https://www.netone.co.zw/tenders/', selector: '.tender-item, article', type: 'list' },
+            { name: 'ZANU PF', url: 'https://www.zanupf.org.zw/tenders/', selector: 'article,.post', type: 'list' }
+          ];
+
+          async function scrapeSite(source) {
             try {
-              const { data } = await axios.get('https://procurement-notices.undp.org/search.cfm?cur=USD&org=UND&cat=Works&cntry=ZWE');
+              const { data } = await axios.get(source.url, {
+                timeout: 15000,
+                headers: {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+              });
               const $ = cheerio.load(data);
               let tenders = [];
-              $('.vacancy').slice(0,10).each((i, item) => {
-                const title = $(item).find('a').first().text().trim();
-                const href = $(item).find('a').attr('href');
-                const link = href? 'https://procurement-notices.undp.org/' + href : '';
-                if (KEYWORDS.some(kw => title.toLowerCase().includes(kw))) {
-                  tenders.push(\`UNDP: \${title} | \${link}\`);
+
+              $(source.selector).slice(0, 20).each((i, el) => {
+                let title = '', link = '', value = 0, deadline = '';
+                const text = $(el).text().trim();
+
+                if (source.type === 'table') {
+                  const cols = $(el).find('td');
+                  if (cols.length < 2) return;
+                  title = $(cols[0]).text().trim() || $(cols[1]).text().trim();
+                  link = $(el).find('a').attr('href') || source.url;
+                  value = parseFloat(text.replace(/[^0-9.]/g,'')) || 0;
+                  deadline = text.match(/\\d{1,2}[\\/\\-]\\d{1,2}[\\/\\-]\\d{2,4}/)?.[0] || 'N/A';
+                } else {
+                  title = $(el).find('a').first().text().trim() || text.slice(0,120);
+                  link = $(el).find('a').attr('href') || source.url;
+                }
+
+                if (!link.startsWith('http')) {
+                  try { link = new URL(link, source.url).href; } catch { link = source.url; }
+                }
+
+                const titleLower = title.toLowerCase();
+                if (title.length > 15 && KEYWORDS.some(kw => titleLower.includes(kw)) && (value === 0 || value >= MIN_VALUE)) {
+                  const valueStr = value > 0? \` | USD $\${value.toLocaleString()}\` : '';
+                  const deadlineStr = deadline!== 'N/A'? \` | Deadline: \${deadline}\` : '';
+                  tenders.push(\`\${source.name}: \${title}\${valueStr}\${deadlineStr} | \${link}\`);
                 }
               });
               return tenders;
-            } catch(e) { return [\`UNDP Error: \${e.message}\`]; }
+            } catch(e) {
+              return [\`\${source.name} Error: \${e.message.slice(0,80)}\`];
+            }
           }
 
           (async () => {
-            const results = [...await scrapePRAZ(),...await scrapeUNDP()];
+            const allResults = await Promise.allSettled(SOURCES.map(scrapeSite));
+            const results = allResults.map(r => r.status === 'fulfilled'? r.value : []).flat();
             const actualTenders = results.filter(r =>!r.includes('Error'));
-            console.log('Found:', actualTenders.length, 'tenders');
-            console.log('All results:', results);
+            const errors = results.filter(r => r.includes('Error'));
+
+            console.log(\`Found: \${actualTenders.length} tenders from \${SOURCES.length} sources\`);
+            console.log('Working sources:', SOURCES.length - errors.length);
+            console.log('Errors:', errors);
+
             if (actualTenders.length > 0) {
               const transporter = nodemailer.createTransport({
                 service: 'gmail',
@@ -79,12 +106,12 @@ jobs:
               await transporter.sendMail({
                 from: process.env.GMAIL_USER,
                 to: process.env.TO_EMAIL,
-                subject: \`PRAZ + UNDP Tender Alert - \${new Date().toDateString()}\`,
-                text: actualTenders.join('\\n\\n') + '\\n\\n---\\nErrors: ' + results.filter(r => r.includes('Error')).join('; ')
+                subject: \`ZW Tender Alert - \${actualTenders.length} New | \${new Date().toDateString()}\`,
+                text: \`Found \${actualTenders.length} tenders matching your keywords:\\n\\n\${actualTenders.join('\\n\\n')}\\n\\n---\\nChecked: \${SOURCES.map(s=>s.name).join(', ')}\\nFailed: \${errors.length > 0? errors.join('; ') : 'None'}\`
               });
               console.log('Email sent:', actualTenders.length, 'tenders');
             } else {
-              console.log('No matching tenders today. Log:', results);
+              console.log('No matching tenders today. Errors:', errors);
             }
           })();
           "
