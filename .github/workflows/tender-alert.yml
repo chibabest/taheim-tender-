@@ -29,18 +29,13 @@ jobs:
           const MIN_VALUE = 20000;
 
           const SOURCES = [
-            // Gov + NGOs
             { name: 'PRAZ', url: 'https://portal.praz.org.zw/tenders', selector: '.tender-table tr', type: 'table' },
             { name: 'UNDP', url: 'https://procurement-notices.undp.org/search.cfm?cur=USD&org=UND&cat=Works&cntry=ZWE', selector: '.vacancy', type: 'list' },
             { name: 'UNICEF ZW', url: 'https://www.unicef.org/zimbabwe/procurement', selector: '.content-card', type: 'list' },
             { name: 'World Bank ZW', url: 'https://projects.worldbank.org/en/projects-operations/procurement?countrycode_exact=ZW', selector: '.procurement-notice', type: 'list' },
-
-            // Parastatals + Banks
             { name: 'ZESA', url: 'https://www.zesa.co.zw/tenders/', selector: '.tender-item, tr', type: 'list' },
             { name: 'TelOne', url: 'https://www.telone.co.zw/tenders', selector: '.tender, article', type: 'list' },
             { name: 'CBZ Bank', url: 'https://www.cbz.co.zw/about-us/procurement', selector: '.procurement-item, li', type: 'list' },
-
-            // Private Companies
             { name: 'Delta Beverages', url: 'https://www.delta.co.zw/tenders', selector: '.tender-item,.post', type: 'list' },
             { name: 'Old Mutual ZW', url: 'https://www.oldmutual.co.zw/about-us/procurement', selector: '.procurement-item, li', type: 'list' },
             { name: 'Econet', url: 'https://www.econet.co.zw/tenders/', selector: '.tender, article', type: 'list' },
